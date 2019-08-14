@@ -331,8 +331,7 @@ module riscv_decoder
       //                              //
       //////////////////////////////////
 
-      OPCODE_STORE,
-      OPCODE_STORE_POST: begin
+      OPCODE_STORE: begin
         data_req       = 1'b1;
         data_we_o      = 1'b1;
         rega_used_o    = 1'b1;
@@ -341,13 +340,6 @@ module riscv_decoder
         instr_multicycle_o = 1'b1;
         // pass write data through ALU operand c
         alu_op_c_mux_sel_o = OP_C_REGB_OR_FWD;
-
-        // post-increment setup
-        if (instr_rdata_i[6:0] == OPCODE_STORE_POST) begin
-          prepost_useincr_o       = 1'b0;
-          regfile_alu_waddr_sel_o = 1'b0;
-          regfile_alu_we          = 1'b1;
-        end
 
         if (instr_rdata_i[14] == 1'b0) begin
           // offset from immediate
@@ -373,8 +365,7 @@ module riscv_decoder
         endcase
       end
 
-      OPCODE_LOAD,
-      OPCODE_LOAD_POST: begin
+      OPCODE_LOAD: begin
         data_req        = 1'b1;
         regfile_mem_we  = 1'b1;
         rega_used_o     = 1'b1;
@@ -384,13 +375,6 @@ module riscv_decoder
         alu_operator_o      = ALU_ADD;
         alu_op_b_mux_sel_o  = OP_B_IMM;
         imm_b_mux_sel_o     = IMMB_I;
-
-        // post-increment setup
-        if (instr_rdata_i[6:0] == OPCODE_LOAD_POST) begin
-          prepost_useincr_o       = 1'b0;
-          regfile_alu_waddr_sel_o = 1'b0;
-          regfile_alu_we          = 1'b1;
-        end
 
         // sign/zero extension
         data_sign_extension_o = ~instr_rdata_i[14];
