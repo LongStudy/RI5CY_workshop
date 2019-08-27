@@ -22,12 +22,18 @@
 #include "Vtop__Syms.h"
 
 #include <iostream>
+#include <iomanip>
+#include <fstream>
 #include <cstdint>
 #include <cstdlib>
+#include <string>
 
 using std::cout;
 using std::cerr;
 using std::endl;
+
+// Number of cycles to run for
+const uint32_t CYCLES_TO_RUN_FOR = 20;
 
 // Count of clock ticks
 
@@ -152,70 +158,65 @@ void stepSingle ()
   waitForDebugStall();
 }
 
-// Write some program code into memory:
-//
-// ; Store a word to memory first:
-// li a5, 64
-// li a4, 102
-// sw a4, 0(a5)
-// ; Repeated <repeat_factor> times (20 at present)
-//
-// ; Then do something a bit like _exit(0)
-// li a1, 0
-// li a2, 0
-// li a3, 0
-// li a7, 93
-// ecall
-//
 // Execution begins at 0x80, so that's where we write our code.
-void loadProgram()
+uint32_t addr = 0x80;
+
+// Write an instruction into memory at the current address.
+
+void writeInst(uint32_t inst)
 {
-  uint32_t addr = 0x80;
-  uint32_t repeat_factor = 20;
-  for (size_t i = 0; i < repeat_factor; i++)
-  {
-    cpu->top->ram_i->dp_ram_i->writeByte (addr + 0x0, 0x93);
-    cpu->top->ram_i->dp_ram_i->writeByte (addr + 0x1, 0x07);
-    cpu->top->ram_i->dp_ram_i->writeByte (addr + 0x2, 0x00);
-    cpu->top->ram_i->dp_ram_i->writeByte (addr + 0x3, 0x04);
+  cout << std::hex << std::setw(8) << std::setfill(' ') << addr << ": "
+                   << std::setw(8) << std::setfill('0') << inst << endl << std::dec;
 
-    cpu->top->ram_i->dp_ram_i->writeByte (addr + 0x4, 0x13);
-    cpu->top->ram_i->dp_ram_i->writeByte (addr + 0x5, 0x07);
-    cpu->top->ram_i->dp_ram_i->writeByte (addr + 0x6, 0x60);
-    cpu->top->ram_i->dp_ram_i->writeByte (addr + 0x7, 0x06);
+  cpu->top->ram_i->dp_ram_i->writeByte (addr + 0x0, (inst >>  0) & 0xFF);
+  cpu->top->ram_i->dp_ram_i->writeByte (addr + 0x1, (inst >>  8) & 0xFF);
+  cpu->top->ram_i->dp_ram_i->writeByte (addr + 0x2, (inst >> 16) & 0xFF);
+  cpu->top->ram_i->dp_ram_i->writeByte (addr + 0x3, (inst >> 24) & 0xFF);
 
-    cpu->top->ram_i->dp_ram_i->writeByte (addr + 0x8, 0x23);
-    cpu->top->ram_i->dp_ram_i->writeByte (addr + 0x9, 0xa0);
-    cpu->top->ram_i->dp_ram_i->writeByte (addr + 0xa, 0xe7);
-    cpu->top->ram_i->dp_ram_i->writeByte (addr + 0xb, 0x00);
+  addr += 4;
+}
 
-    addr += 0xC;
+// Load a program from a file and write it to the core's memory.
+
+void loadProgram(std::string fileName)
+{
+  cout << "Reading program from " << fileName << endl;
+
+  // Read entire file.
+  std::ifstream binary(fileName, std::ios::binary);
+
+  if (!binary.is_open()) {
+    cerr << "Error opening " << fileName << endl << endl;
+    exit(EXIT_FAILURE);
   }
 
-  cpu->top->ram_i->dp_ram_i->writeByte (addr + 0x0, 0x93);
-  cpu->top->ram_i->dp_ram_i->writeByte (addr + 0x1, 0x05);
-  cpu->top->ram_i->dp_ram_i->writeByte (addr + 0x2, 0x00);
-  cpu->top->ram_i->dp_ram_i->writeByte (addr + 0x3, 0x00);
+  std::vector<unsigned char> buf(std::istreambuf_iterator<char>(binary), {});
 
-  cpu->top->ram_i->dp_ram_i->writeByte (addr + 0x4, 0x13);
-  cpu->top->ram_i->dp_ram_i->writeByte (addr + 0x5, 0x06);
-  cpu->top->ram_i->dp_ram_i->writeByte (addr + 0x6, 0x00);
-  cpu->top->ram_i->dp_ram_i->writeByte (addr + 0x7, 0x00);
+  // Check there is a multiple of 4 bytes (if not something went wrong and we
+  // must have a partial instruction (or just complete rubbish) somewhere.
+  if ((buf.size() % 4) != 0) {
+    cerr << "Code size " << buf.size() << " is not a multiple of 4 bytes - exiting." << endl;
+    exit(EXIT_FAILURE);
+  }
 
-  cpu->top->ram_i->dp_ram_i->writeByte (addr + 0x8, 0x93);
-  cpu->top->ram_i->dp_ram_i->writeByte (addr + 0x9, 0x06);
-  cpu->top->ram_i->dp_ram_i->writeByte (addr + 0xa, 0x00);
-  cpu->top->ram_i->dp_ram_i->writeByte (addr + 0xb, 0x00);
+  // Convert to words
+  size_t nWords = buf.size() / 4;
+  std::vector<uint32_t> code;
+  for (size_t i = 0; i < nWords; ++i) {
+    uint32_t word = 0;
+    word |= buf[i*4 + 0] <<  0;
+    word |= buf[i*4 + 1] <<  8;
+    word |= buf[i*4 + 2] << 16;
+    word |= buf[i*4 + 3] << 24;
+    code.push_back(word);
+  }
 
-  cpu->top->ram_i->dp_ram_i->writeByte (addr + 0xc, 0x93);
-  cpu->top->ram_i->dp_ram_i->writeByte (addr + 0xd, 0x08);
-  cpu->top->ram_i->dp_ram_i->writeByte (addr + 0xe, 0xd0);
-  cpu->top->ram_i->dp_ram_i->writeByte (addr + 0xf, 0x05);
+  cout << "Writing program to memory" << endl << endl;
 
-  cpu->top->ram_i->dp_ram_i->writeByte (addr + 0x10, 0x73);
-  cpu->top->ram_i->dp_ram_i->writeByte (addr + 0x11, 0x00);
-  cpu->top->ram_i->dp_ram_i->writeByte (addr + 0x12, 0x00);
-  cpu->top->ram_i->dp_ram_i->writeByte (addr + 0x13, 0x00);
+  for (auto& inst: code)
+    writeInst(inst);
+
+  cout << endl;
 }
 
 int
@@ -241,8 +242,15 @@ main (int    argc,
   clockSpin(5);
   cpu->rstn_i = 1;
 
-  // Put a few instructions in memory
-  loadProgram();
+  // Put instructions in memory from default file (or as specified)
+  if (argc == 2)
+    loadProgram(argv[1]);
+  else if (argc > 2) {
+    cerr << "Usage: ./testbench.cpp [test code]" << endl << endl;
+    exit(EXIT_FAILURE);
+  } else {
+    loadProgram("examples.bin");
+  }
 
   cout << "About to halt and set traps on exceptions" << endl;
 
@@ -264,21 +272,12 @@ main (int    argc,
   cpu->fetch_enable_i = 1;
 
   cout << "Cycling clock to run for a few instructions" << endl;
-  clockSpin(20);
+  clockSpin(CYCLES_TO_RUN_FOR);
 
   cout << "Halting" << endl;
 
   debugWrite(DBG_CTRL, debugRead(DBG_CTRL) | DBG_CTRL_HALT);
   waitForDebugStall();
-
-  cout << "Halted. Setting single step" << endl;
-
-  debugWrite(DBG_CTRL, DBG_CTRL_HALT | DBG_CTRL_SSTE);
-
-  // Try and step 5 instructions
-  for (int j=0; j<5; j++) {
-    stepSingle ();
-  }
 
   // Close VCD
 
