@@ -52,6 +52,12 @@ module riscv_ex_stage
   input  logic        clk,
   input  logic        rst_n,
 
+  // user add
+	input logic         str_op_en_i,
+	input logic [STR_OP_WIDTH-1:0] str_operator_i,
+  input logic [31:0]             str_operand_i,
+//	output logic [31:0]            str_op_result,
+
   // ALU signals from ID stage
   input  logic [ALU_OP_WIDTH-1:0] alu_operator_i,
   input  logic [31:0] alu_operand_a_i,
@@ -185,6 +191,9 @@ module riscv_ex_stage
   logic           apu_ready;
   logic           apu_gnt;
 
+  //user add
+  logic [31:0]            str_op_result;
+  logic           str_op_ready;
   // ALU write port mux
   always_comb
   begin
@@ -211,6 +220,8 @@ module riscv_ex_stage
         regfile_alu_wdata_fw_o = mult_result;
       if (csr_access_i)
         regfile_alu_wdata_fw_o = csr_rdata_i;
+      if (str_op_en_i)
+        regfile_alu_wdata_fw_o = str_op_result;
     end
   end
 
@@ -318,6 +329,22 @@ module riscv_ex_stage
     .ready_o         ( mult_ready           ),
     .ex_ready_i      ( ex_ready_o           )
   );
+
+    /*
+    riscv_str_ops
+    */
+	riscv_str_ops riscv_str_ops_i
+ 	(
+    .clk                 ( clk             ),
+    .rst_n               ( rst_n           ),
+    .enable_i            ( str_op_en_i     ),
+    .operator_i          ( str_operator_i  ),
+    .operand_i           ( str_operand_i   ),
+    .result_o            ( str_op_result   ),
+    .ready_o             ( str_op_ready    ),
+    .ex_ready_i          ( ex_ready_o      )
+
+ 	);
 
    generate
       if (FPU == 1) begin
@@ -477,9 +504,9 @@ module riscv_ex_stage
   // As valid always goes to the right and ready to the left, and we are able
   // to finish branches without going to the WB stage, ex_valid does not
   // depend on ex_ready.
-  assign ex_ready_o = (~apu_stall & alu_ready & mult_ready & lsu_ready_ex_i
+  assign ex_ready_o = (~apu_stall & alu_ready & mult_ready & str_op_ready & lsu_ready_ex_i
                        & wb_ready_i & ~wb_contention) | (branch_in_ex_i);
-  assign ex_valid_o = (apu_valid | alu_en_i | mult_en_i | csr_access_i | lsu_en_i)
-                       & (alu_ready & mult_ready & lsu_ready_ex_i & wb_ready_i);
+  assign ex_valid_o = (apu_valid | alu_en_i | mult_en_i | str_op_en_i | csr_access_i | lsu_en_i)
+                       & (alu_ready & mult_ready & str_op_ready & lsu_ready_ex_i & wb_ready_i);
 
 endmodule

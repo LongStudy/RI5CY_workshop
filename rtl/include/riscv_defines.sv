@@ -379,4 +379,17 @@ parameter C_RM_PLUSINF        = 3'h3;
 parameter C_RM_MINUSINF       = 3'h2;
 parameter C_PC                = 5;
 
+
+// user add
+parameter OPCODE_STR_OPS	= 7'h0B;
+
+parameter STR_OP_WIDTH = 2;
+
+parameter STR_OP_UPPER = 2'b00;
+parameter STR_OP_LOWER = 2'b01;
+parameter STR_OP_LEET  = 2'b10;
+parameter STR_OP_ROT13 = 2'b11;
+
+
+
 endpackage

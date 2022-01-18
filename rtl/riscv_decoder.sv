@@ -133,7 +133,12 @@ module riscv_decoder
   // jump/branches
   output logic [1:0]  jump_in_dec_o,           // jump_in_id without deassert
   output logic [1:0]  jump_in_id_o,            // jump is being calculated in ALU
-  output logic [1:0]  jump_target_mux_sel_o    // jump target selection
+  output logic [1:0]  jump_target_mux_sel_o,   // jump target selection
+
+  // user add
+	output logic [STR_OP_WIDTH-1:0] str_operator_o,
+	output logic str_op_en_o
+
 );
 
   // careful when modifying the following parameters! these types have to match the ones in the APU!
@@ -249,6 +254,10 @@ module riscv_decoder
     alu_bmask_b_mux_sel_o       = BMASK_B_IMM;
 
     instr_multicycle_o          = 1'b0;
+    // user add
+   	str_op_en_o                 = 1'b0;
+  	str_operator_o              = STR_OP_UPPER;
+
 
     unique case (instr_rdata_i[6:0])
 
@@ -1478,6 +1487,56 @@ module riscv_decoder
           end
         endcase
       end
+      /*
+                                            _      
+                                          | |     
+        _   _ ___  ___ _ __    ___ ___   __| | ___ 
+      | | | / __|/ _ \ '__|  / __/ _ \ / _` |/ _ \
+      | |_| \__ \  __/ |    | (_| (_) | (_| |  __/
+        \__,_|___/\___|_|     \___\___/ \__,_|\___|
+
+      */
+
+    OPCODE_STR_OPS:begin
+        unique case (instr_rdata_i[14:12])
+          3'b000: begin
+          // Upper case
+          str_op_en_o = 1'b1;
+          str_operator_o = STR_OP_UPPER;
+          rega_used_o = 1'b1;
+          regfile_alu_we = 1'b1;
+          end
+
+          3'b001: begin
+          // Lower case
+          str_op_en_o = 1'b1;
+          str_operator_o = STR_OP_LOWER;
+          rega_used_o = 1'b1;
+          regfile_alu_we = 1'b1;
+          end
+
+          3'b010: begin
+          // Leet speak
+          str_op_en_o = 1'b1;
+          str_operator_o = STR_OP_LEET;
+          rega_used_o = 1'b1;
+          regfile_alu_we = 1'b1;
+          end
+
+          3'b011: begin
+          // ROT13
+          str_op_en_o = 1'b1;
+          str_operator_o = STR_OP_ROT13;
+          rega_used_o = 1'b1;
+          regfile_alu_we = 1'b1;
+          end
+
+          default: begin
+            illegal_insn_o = 1'b1;
+          end
+        endcase
+    
+    end
 
       default: begin
         illegal_insn_o = 1'b1;

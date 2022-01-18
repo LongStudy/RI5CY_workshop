@@ -242,8 +242,18 @@ module riscv_id_stage
     output logic        perf_jump_o,          // we are executing a jump instruction
     output logic        perf_jr_stall_o,      // jump-register-hazard
     output logic        perf_ld_stall_o,      // load-use-hazard
-    output logic        perf_pipeline_stall_o //extra cycles from elw
+    output logic        perf_pipeline_stall_o, //extra cycles from elw
+      
+    // user add
+	  //output logic [STR_OP_WIDTH-1:0] str_operator_o,
+    output logic [STR_OP_WIDTH-1:0] str_operator_ex_o,
+	  output logic        str_op_en_o,
+    output logic [31:0] str_operand_ex_o
+
 );
+
+  // user add
+  logic [STR_OP_WIDTH-1:0] str_operator_o;
 
   logic [31:0] instr;
 
@@ -1086,7 +1096,11 @@ module riscv_id_stage
     // jump/branches
     .jump_in_dec_o                   ( jump_in_dec               ),
     .jump_in_id_o                    ( jump_in_id                ),
-    .jump_target_mux_sel_o           ( jump_target_mux_sel       )
+    .jump_target_mux_sel_o           ( jump_target_mux_sel       ),
+
+    // user add
+    .str_operator_o                   ( str_operator_o             ),
+    .str_op_en_o                      ( str_op_en_o                )
 
   );
 
@@ -1326,6 +1340,22 @@ module riscv_id_stage
   //  |___|____/      |_____/_/\_\ |_|  |___|_|   |_____|_____|___|_| \_|_____|  //
   //                                                                             //
   /////////////////////////////////////////////////////////////////////////////////
+
+  //always_ff @(posedge clk, negedge rst_n)
+
+
+  always_comb begin : blockName1
+    // if (rst_n == 1'b0)
+    // begin
+    //   str_operand_ex_o         = '0;
+    // end
+    if (str_op_en_o) begin                      // a little bit different
+      str_operator_ex_o         = str_operator_o;  // a little bit different
+      str_operand_ex_o          = alu_operand_a;
+    end
+  end
+
+
 
   always_ff @(posedge clk, negedge rst_n)
   begin : ID_EX_PIPE_REGISTERS

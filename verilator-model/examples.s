@@ -3,15 +3,13 @@ _start:
         li a0, 0
         li a1, 1
         li a2, 2
-        li a3, 3
-        li a4, 4
-        li a5, 5
-        li a6, 6
-        li a7, 7
-        add t0, a1, a2
-        add t1, a3, a4
-        add t2, a4, a5
-        add t0, t1, t2
+        li a5, 0x74657374          # a1 = “test”
+        li a6, 0x6c656574          # "LEET"
+
+        .insn i 0x0b, 2, a4, a5, 0 # leet a4, a5
+        .insn i 0x0b, 2, a5, a6, 0 # leet a5, a6
+
+
 exit:
         # Similar to exit(0) in C.
         li a0, 0
@@ -19,3 +17,7 @@ exit:
         li a2, 0
         li a7, 93
         ecall
+
+
+        
+        

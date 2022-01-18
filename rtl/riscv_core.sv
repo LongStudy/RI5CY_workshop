@@ -131,6 +131,12 @@ module riscv_core
   localparam N_HWLP_BITS = $clog2(N_HWLP);
   localparam APU         = ((SHARED_DSP_MULT==1) | (SHARED_INT_DIV==1) | (FPU==1)) ? 1 : 0;
 
+  // user add
+  logic str_op_en;
+  logic [STR_OP_WIDTH-1:0] str_operator;
+  logic [31:0] str_operand;
+  logic [31:0] str_op_result;
+
   // IF/ID signals
   logic              is_hwlp_id;
   logic [N_HWLP-1:0] hwlp_dec_cnt_id;
@@ -728,7 +734,13 @@ module riscv_core
     .perf_jump_o                  ( perf_jump            ),
     .perf_jr_stall_o              ( perf_jr_stall        ),
     .perf_ld_stall_o              ( perf_ld_stall        ),
-    .perf_pipeline_stall_o        ( perf_pipeline_stall  )
+    .perf_pipeline_stall_o        ( perf_pipeline_stall  ),
+
+    // user add
+    .str_operator_ex_o                 ( str_operator             ),
+    .str_op_en_o                      ( str_op_en                ),
+    .str_operand_ex_o                 ( str_operand          )
+    
   );
 
 
@@ -756,6 +768,12 @@ module riscv_core
     // Global signals: Clock and active low asynchronous reset
     .clk                        ( clk                          ),
     .rst_n                      ( rst_ni                       ),
+
+    // user add
+    .str_op_en_i                  ( str_op_en                  ),
+    .str_operator_i               ( str_operator               ),
+    .str_operand_i                ( str_operand                  ),
+    //.str_op_result                ( str_op_result               ),
 
     // Alu signals from ID stage
     .alu_en_i                   ( alu_en_ex                    ),
